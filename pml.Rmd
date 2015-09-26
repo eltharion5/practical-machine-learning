@@ -1,0 +1,121 @@
+---
+title: "pml"
+author: "eltharion5"
+date: "Friday, September 25, 2015"
+output: html_document
+---
+
+###Background
+
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+###loading the packages
+
+```{r}
+library(AppliedPredictiveModeling)
+library(caret)
+```
+
+
+###getting the data
+
+training datasets are placed in the working directory.
+
+```{r}
+training<- read.csv(file = 'pml-training.csv',sep=',')
+evaluation<- read.csv(file = 'pml-testing.csv',sep=',')
+```
+
+
+###cleaning the data
+
+We get rid of all the unuseful data. They are the ones which contain ('kurtosis','skewness','max','min','amplitude','avg','var','stddev'). We also get rid of the first seven columns.
+
+
+```{r}
+training2<-training
+training2<- training2[,!grepl("kurtosis",names(training2) )]
+training2<- training2[,!grepl("skewness",names(training2) )]
+training2<- training2[,!grepl("max",names(training2) )]
+training2<- training2[,!grepl("min",names(training2) )]
+training2<- training2[,!grepl("amplitude",names(training2) )]
+training2<- training2[,!grepl("avg",names(training2) )]
+training2<- training2[,!grepl("var",names(training2) )]
+training2<- training2[,!grepl("stddev",names(training2) )]
+training2<-training2[,-c(1:7)]
+
+
+evaluation2<-evaluation
+evaluation2<- evaluation2[,!grepl("kurtosis",names(evaluation2) )]
+evaluation2<- evaluation2[,!grepl("skewness",names(evaluation2) )]
+evaluation2<- evaluation2[,!grepl("max",names(evaluation2) )]
+evaluation2<- evaluation2[,!grepl("min",names(evaluation2) )]
+evaluation2<- evaluation2[,!grepl("amplitude",names(evaluation2) )]
+evaluation2<- evaluation2[,!grepl("avg",names(evaluation2) )]
+evaluation2<- evaluation2[,!grepl("var",names(evaluation2) )]
+evaluation2<- evaluation2[,!grepl("stddev",names(evaluation2) )]
+evaluation2<-evaluation2[,-c(1:7)]
+
+```
+
+
+###splitting the data into trainning and testing set
+
+We split the data into a training and a testing set, proprrotions are 75 % for the training set and 25% for the testing set.
+
+
+```{r}
+intrain<- createDataPartition(training2[,53],p = 0.75,list = F)
+training_final<-training2[intrain,]
+testing<-training2[-intrain,]
+names(training_final)[53]<-"classe"
+names(testing)[53]<-"classe"
+
+```
+
+
+###Training
+
+We choose a random forest algorithm to train the classifier.
+
+```{r,cache=TRUE}
+
+ctrl <- trainControl(verboseIter = F)
+modelfit2<-train(classe~.,method = 'rf' ,preProcess = c("center", "scale"),data = training_final,tuneGrid=data.frame(mtry=5),trControl = ctrl)
+```
+
+
+###testing
+
+Now we test the generalisation power on the testinng set
+
+```{r}
+confusionMatrix(testing[,53],predict(modelfit2,testing))
+```
+
+
+###conclusion
+
+the random forest method gives really good classification result, as shown in the results above. When applied to the test sets, the results are 99% accurate. 
+Several methods where used in the train method, but in this particular probelm, random forest was the most succesful one.
+
+
+###saving results
+
+We save each result in a different text file for courserra submission
+
+```{r}
+res<-predict(modelfit2,evaluation)
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("results/problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(res)
+```
+
